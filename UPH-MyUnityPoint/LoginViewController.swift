@@ -3,25 +3,19 @@
 //  UPH-MyUnityPoint
 //
 //  Created by Aakash Sheth on 3/20/16.
+//edited by George N 3/26/16
 //  Copyright © 2016 Aakash Sheth. All rights reserved.
 //
 
 import UIKit
 
-class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButtonDelegate{
+class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButtonDelegate, GIDSignInDelegate{
    
     var btnSignIn : GIDSignInButton!
     var btnSignOut : UIButton!
     var btnDisconnect : UIButton!
     var label : UILabel!
 
-    // MARK: Properties
-    //Facebook setting up the log in button
-   let loginButton: FBSDKLoginButton = {
-        let button = FBSDKLoginButton()
-        button.readPermissions = ["email"]
-        return button
-    }()
     
    
     @IBOutlet weak var signInButton: GIDSignInButton!
@@ -30,19 +24,34 @@ class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButt
     func viewDidLoad() {
             super.viewDidLoad()
     
-         view.addSubview(loginButton)
-
-        loginButton.center = CGPointMake(view.center.x, 500)
+        //Facebook sign in
         
-        view.addSubview(loginButton)
+        if (FBSDKAccessToken.currentAccessToken() == nil)
+        {
+            print("FB Not logged in..")
+        }
+        else
+        {
+            print("FB Logged in..")
+        }
         
+        let loginButton = FBSDKLoginButton()
+        loginButton.readPermissions = ["public_profile", "email", "user_friends"]
+        loginButton.center = CGPointMake(view.center.x,500)
+        loginButton.delegate = self
+        self.view.addSubview(loginButton)
+        
+        //Google sign in
+        
+        
+        GIDSignIn.sharedInstance().delegate = self
         GIDSignIn.sharedInstance().uiDelegate = self
-    
+        
         btnSignIn = GIDSignInButton(frame: CGRectMake(0,10,200,30))
+        
         btnSignIn.center = view.center
-
+      
         btnSignIn.style = GIDSignInButtonStyle.Standard
-        btnSignIn.addTarget(self, action: Selector("btnSignInPressed:"), forControlEvents: UIControlEvents.TouchUpInside)
         view.addSubview(btnSignIn)
         
         btnSignOut = UIButton(frame: CGRectMake(0,0,100,30))
@@ -53,9 +62,9 @@ class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButt
         btnSignOut.addTarget(self, action: Selector("btnSignOutPressed:"), forControlEvents: UIControlEvents.TouchUpInside)
         view.addSubview(btnSignOut)
         
-        btnDisconnect = UIButton(frame: CGRectMake(0,0,100,30))
+        btnDisconnect = UIButton(frame: CGRectMake(0,0,200,100))
         btnDisconnect.center = CGPointMake(view.center.x, 200)
-        btnDisconnect.setTitle("Disconnect", forState: UIControlState.Normal)
+        btnDisconnect.setTitle("Google Signed in!", forState: UIControlState.Normal)
         btnDisconnect.setTitleColor(UIColor.blueColor(), forState: UIControlState.Normal)
         btnDisconnect.setTitleColor(UIColor.cyanColor(), forState: UIControlState.Highlighted)
         btnDisconnect.addTarget(self, action: Selector("btnDisconnectPressed:"), forControlEvents: UIControlEvents.TouchUpInside)
@@ -63,7 +72,7 @@ class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButt
         
         label = UILabel(frame: CGRectMake(0,0,200,100))
         label.center = CGPointMake(view.center.x, 400)
-        label.numberOfLines = 0 //multi-lines
+        label.numberOfLines = 1 //multi-lines
         label.text = "Please sign in. "
         label.textAlignment = NSTextAlignment.Center
         view.addSubview(label)
@@ -74,37 +83,47 @@ class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButt
         toggleAuthUI()
      
     }
+    
     func toggleAuthUI(){
+        print("toggle")
+         //performSegueWithIdentifier("showNewTab", sender: self)
         if(GIDSignIn.sharedInstance().hasAuthInKeychain()){
             //signed in
+            dispatch_async(dispatch_get_main_queue(), {
+               self.performSegueWithIdentifier("showNewTab", sender: self)
+            })
+            //performSegueWithIdentifier("showNewTab", sender: self)
+            print("signed in inseide toggle")
             btnSignIn.hidden = true
             btnSignOut.hidden = false
             btnDisconnect.hidden = false
-            print("Signed auth")
+            
         } else{
             btnSignIn.hidden = false
             btnSignOut.hidden = true
             btnDisconnect.hidden = true
-            print("Signed out auth")
+            
         }
     }
+    
+ 
+    
     
     func btnSignOutPressed(sender: UIButton){
         GIDSignIn.sharedInstance().disconnect()
         label.text = "Disconnecting"
+        print("signout")
      
         
     }
-    func btnSignInPressed(sender: UIButton){
-        view.addSubview(btnSignIn)
-    }
-    
     
     
     func btnDisconnectPressed(sender: UIButton){
+          self.performSegueWithIdentifier("showNewTab", sender: self)
         
         label.text = "Signed Out"
         toggleAuthUI()
+        print("disco")
         
     }
     
@@ -125,17 +144,16 @@ class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButt
     }
     
     
-//    @IBAction func didTapSignOut(sender: AnyObject) {
-//        GIDSignIn.sharedInstance().signOut()
-//    }
+
     func loginButton(loginButton: FBSDKLoginButton!, didCompleteWithResult result: FBSDKLoginManagerLoginResult!, error: NSError!){
         if(error == nil){
         print("completed log in")
-        self.performSegueWithIdentifier("UITabBarController", sender: nil)
+       
+        self.performSegueWithIdentifier("showNewTab", sender: self)
         }
         else
         {
-            print(error.localizedDescription)
+            print("Error " ,error.localizedDescription)
         }
         
     }
@@ -145,19 +163,38 @@ class LoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButt
     @param loginButton The button that was clicked.
     */
     func loginButtonDidLogOut(loginButton: FBSDKLoginButton!){
-        //let loginManager = FBSDKLoginManager()
-        //loginManager.logOut()
-    //FBSession.activeSession().closeAndClearTokenInformation()  
-    print("user logged out!")}
-    func loginButtonWillLogin(loginButton: FBSDKLoginButton!) -> Bool {
-        return true
-    }
+        print("User logged out......")
         
-   // func signIn(signIn: GIDSignIn!, didSignInForUser user: GIDGoogleUser!, withError error: NSError!) {
-     //   print("Google Signed in ")
-   // }
-    //func signIn(signIn: GIDSignIn!, didDisconnectWithUser user: GIDGoogleUser!, withError error: NSError!) {
-    //    print("Google sign out")
-   // }
+}
+    func loginButtonWillLogin(loginButton: FBSDKLoginButton!) -> Bool {
+        print("Log in hshsh ")
+        return true
+        
+    }
+    func signIn(signIn: GIDSignIn!, didDisconnectWithUser user:GIDGoogleUser!,
+        withError error: NSError!) {
+            // Perform any operations when the user disconnects from app here.
+            // ...
+           // NSNotificationCenter.defaultCenter().postNotificationName("ToggleAuthUINotification",
+              //  object: nil, userInfo: ["statusText": "User disconnected"])
+       
+        
+    }
+    func signIn(signIn: GIDSignIn!, didSignInForUser user: GIDGoogleUser!,
+        withError error: NSError!) {
+            
+            if (error == nil) {
+                
+                print("Google log in presented")
+        
+                performSegueWithIdentifier("showNewTab", sender: self)
+                
+                
+            }
+            else {
+                print("\(error.localizedDescription)")
+            }
+    }
+    
     
     }
